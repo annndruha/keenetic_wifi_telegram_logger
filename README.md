@@ -3,7 +3,7 @@
 Simple python script which sends you a Telegram message when a device connected to Wi-Fi or disconnected.
 Work only with Keenetic routers. Script use REST (over CLI) Keenetic-API. For test propose check your router web-interface at `https://yourdomain.keenetic.pro/a`
 
-Script ask router for list of clients every 5 seconds, but routers has delay for updated state, so real refresh rate about 20 seconds.
+Script ask router for list of clients every 5 seconds, but routers has delay for updated state, so real refresh rate for connect ~20 seconds for disconnect ~1-20 minutes.
 
 ## How to use (Linux)
 
