@@ -55,10 +55,10 @@ def compare_states(old, new):
     removed_keys = list(set(old.keys()) - set(new.keys()))
     message = ''
     for nc in new_keys:
-        message += f'➕ {new[nc]}%0A'
+        message += f'🟢 {new[nc]}%0A'
 
     for rc in removed_keys:
-        message += f'➖ {old[rc]}%0A'
+        message += f'🔴 {old[rc]}%0A'
 
     if len(message):
         message = f'📶 {WIFI_NAME}:%0A' + message
