@@ -1,6 +1,7 @@
 # Keenetic Wi-Fi Telegram Logger
 
-Simple python script which sends a Telegram message when a device is connected to Wi-Fi or disconnected from Wi-Fi
+Simple python script which sends you a Telegram message when a device connected to Wi-Fi or disconnected.
+Work only with Keenetic routers. Script use REST (over CLI) Keenetic-API. For test propose check your router web-interface at `https://yourdomain.keenetic.pro/a`
 
 ## How to use (linux)
 
@@ -9,7 +10,7 @@ Clone repo:
 git clone https://github.com/annndruha/keenetic_wifi_telegram_logger
 ```
 
-Create in repo folder .env-file:
+Create in .env-file repository folder :
 ```shell
 touch .env
 ```
