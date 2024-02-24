@@ -5,9 +5,10 @@ Work only with Keenetic routers. Script use REST (over CLI) Keenetic-API. For te
 
 ## How to use (linux)
 
-Clone repo:
+Clone repo and go to folder:
 ```shell
 git clone https://github.com/annndruha/keenetic_wifi_telegram_logger
+cd keenetic_wifi_telegram_logger
 ```
 
 Create in .env-file repository folder :
