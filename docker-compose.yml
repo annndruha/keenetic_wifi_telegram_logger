@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  wifi_logger:
+    pull_policy: always
+    image: ghcr.io/annndruha/keenetic_wifi_telegram_logger:latest
+    container_name: wifi_logger
+    restart: always
+    env_file: .env

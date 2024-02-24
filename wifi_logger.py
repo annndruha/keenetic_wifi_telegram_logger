@@ -1,3 +1,4 @@
+# https://github.com/annndruha/keenetic_wifi_telegram_logger
 # This script made for Keenetic routers
 # If Wi-FI device connected or disconnected - script send telegram message
 
