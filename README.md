@@ -20,7 +20,7 @@ touch .env
 
 Fill your values in .env-file (`nano .env` etc.):
 ```text
-WIFI_NAME=human_name_for_message
+WIFI_NAME=🏠 Home Wi-Fi
 WIFI_HOST=https://yourdomain.keenetic.pro
 WIFI_LOGIN=admin
 WIFI_PASSWORD=password

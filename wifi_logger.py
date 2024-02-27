@@ -61,7 +61,7 @@ def compare_states(old, new):
         message += f'🔴 {old[rc]}%0A'
 
     if len(message):
-        message = f'📶 {WIFI_NAME}:%0A' + message
+        message = f'{WIFI_NAME}:%0A' + message
     return message
 
 
