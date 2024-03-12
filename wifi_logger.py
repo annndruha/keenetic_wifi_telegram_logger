@@ -48,7 +48,6 @@ def keen_auth(username, password):
 
 
 def update_clients():
-    # r = session.get(f'https://gdssgddgs.com/rci/show/ip/hotspot')
     r = session.get(f'{WIFI_HOST}/rci/show/ip/hotspot')
     if r.status_code != 200:
         raise ConnectionRefusedError(f'Status code: {r.status_code}')
