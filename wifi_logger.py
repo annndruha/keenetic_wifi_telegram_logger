@@ -118,6 +118,7 @@ def send_host_down_message(error):
             'entities': json.dumps([{'type': 'blockquote',
                                      'offset': offset,
                                      'length': length}])}
+    logging.info('[Send message]' + host_down_message)
     r = requests.post(f'https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage', data=body,
                       timeout=10)
     if r.status_code != 200:
