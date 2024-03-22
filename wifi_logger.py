@@ -137,6 +137,7 @@ if __name__ == '__main__':
             except (ConnectionError, requests.RequestException) as err:
                 logging.error(err)
                 send_host_down_message(err)
+                ACTIVE_CLIENTS = {}
                 time.sleep(30)
         except Exception as err:
             logging.error(err)
