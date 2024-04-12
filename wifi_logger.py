@@ -28,30 +28,28 @@ logging.basicConfig(
 logging.Formatter.converter = time.gmtime
 
 session = requests.session()  # Global session for prevent auth on every request
-ACTIVE_CLIENTS = {}  # {mac : name}
+ACTIVE_CLIENTS = {}  # {'mac_address' : 'device_name'}
 
 
 def keen_auth(username, password):
-    r = session.get(f'{WIFI_HOST}/auth',
-                    timeout=10)
+    r = session.get(f'{WIFI_HOST}/auth', timeout=10)
+    if r.status_code == 200:
+        return True
     if r.status_code == 401:
         md5 = username + ':' + r.headers['X-NDM-Realm'] + ':' + password
         md5 = hashlib.md5(md5.encode('utf-8'))
         sha = r.headers['X-NDM-Challenge'] + md5.hexdigest()
         sha = hashlib.sha256(sha.encode('utf-8'))
-        r_new = session.post(f'{WIFI_HOST}/auth', json={'login': username, 'password': sha.hexdigest()},
-                             timeout=10)
-        if r_new.status_code == 200:
+        r_auth = session.post(f'{WIFI_HOST}/auth', json={'login': username, 'password': sha.hexdigest()}, timeout=10)
+        if r_auth.status_code == 200:
             return True
-    elif r.status_code == 200:
-        return True
-    else:
-        return False
+        else:
+            raise requests.HTTPError(f'While auth attempt host return {r_auth.status_code} status code.')
+    raise requests.HTTPError(f'While check current auth status host return {r.status_code} status code.')
 
 
 def update_clients():
-    r = session.get(f'{WIFI_HOST}/rci/show/ip/hotspot',
-                    timeout=10)
+    r = session.get(f'{WIFI_HOST}/rci/show/ip/hotspot', timeout=10)
     if r.status_code != 200:
         raise ConnectionRefusedError(f'Status code: {r.status_code}')
 
@@ -67,29 +65,31 @@ def update_clients():
 
 
 def compare_states(old, new):
-    new_keys = list(set(new.keys()) - set(old.keys()))
-    removed_keys = list(set(old.keys()) - set(new.keys()))
-    msg = ''
-    msg += ''.join([f'🟢 {new[nc]}%0A' for nc in new_keys])
-    msg += ''.join([f'🔴 {old[rc]}%0A' for rc in removed_keys])
-    msg = '%0A'.join(sorted(filter(None, msg.split('%0A'))))
+    new_devices = list(set(new.keys()) - set(old.keys()))
+    old_devices = list(set(old.keys()) - set(new.keys()))
 
-    if len(msg):  # If changed, also specify Wi-Fi alias
-        msg = f'{WIFI_NAME}:%0A' + msg
+    if not len(new_devices) and not len(old_devices):
+        return ''
+
+    msg = ''
+    msg += ''.join([f'🟢 {new[nc]}%0A' for nc in new_devices])
+    msg += ''.join([f'🔴 {old[rc]}%0A' for rc in old_devices])
+    msg = '%0A'.join(sorted(filter(None, msg.split('%0A'))))
+    msg = f'{WIFI_NAME}:%0A' + msg
     return msg
 
 
-def send_message(message):
-    if not len(message):
+def send_message(msg):
+    if not len(msg):
         return
 
-    logging.info('[Send message]' + message)
+    logging.info(f'[Send message] {msg}')
     r = requests.post(f'https://api.telegram.org'
                       f'/bot{TG_BOT_TOKEN}'
                       f'/sendMessage'
                       f'?chat_id={TG_CHAT_ID}'
                       f'&parse_mode=HTML'
-                      f'&text={message}',
+                      f'&text={msg}',
                       timeout=10)
     if r.status_code != 200:
         logging.error(f'[Telegram error] {r.status_code}, {r.text}')
@@ -98,47 +98,46 @@ def send_message(message):
 def send_host_down_message(error):
     """
     At first glance, it seems that this function can be removed,
-    but otherwise unable to send a message with a quote
+    but otherwise unable to send a message with a quote correctly
     """
 
     def utf16len(text):
-        i = 0
-        for c in text:
-            i += 1 if ord(c) < 65536 else 2
-        return i
+        return sum([1 if ord(c) < 65536 else 2 for c in text])
 
     unquoted_text = f'🔥 {WIFI_NAME} host probably down.'
     offset = utf16len(unquoted_text)
     length = utf16len(str(error))
 
     host_down_message = unquoted_text + str(error)
-
-    body = {'chat_id': TG_CHAT_ID,
-            'text': host_down_message,
-            'entities': json.dumps([{'type': 'blockquote',
-                                     'offset': offset,
-                                     'length': length}])}
     logging.info('[Send message]' + host_down_message)
-    r = requests.post(f'https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage', data=body,
-                      timeout=10)
+
+    body = {'chat_id': TG_CHAT_ID, 'text': host_down_message,
+            'entities': json.dumps([{'type': 'blockquote', 'offset': offset, 'length': length}])}
+    r = requests.post(f'https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage', data=body, timeout=10)
     if r.status_code != 200:
         logging.error(f'[Telegram error] {r.status_code}, {r.text}')
 
 
 if __name__ == '__main__':
+    host_alive = True
     while True:
         try:
             try:
                 while keen_auth(WIFI_LOGIN, WIFI_PASSWORD):
-                    old_state = copy.deepcopy(ACTIVE_CLIENTS)
+                    if not host_alive:  # Host back online but may have no clients
+                        host_alive = True
+                        send_message(f'✅ {WIFI_NAME} host alive!')
+                    old_active_clients = copy.deepcopy(ACTIVE_CLIENTS)
                     update_clients()
-                    send_message(compare_states(old_state, ACTIVE_CLIENTS))
+                    message = compare_states(old_active_clients, ACTIVE_CLIENTS)
+                    send_message(message)
                     time.sleep(5)
             except (ConnectionError, requests.RequestException) as err:
                 logging.error(err)
                 send_host_down_message(err)
                 ACTIVE_CLIENTS = {}
+                host_alive = False
                 time.sleep(30)
         except Exception as err:
             logging.error(err)
-            time.sleep(10)
+            time.sleep(30)
