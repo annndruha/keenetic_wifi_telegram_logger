@@ -90,7 +90,7 @@ def send_message(msg):
 
 
 if __name__ == '__main__':
-    host_alive = True
+    host_alive = False
     while True:
         try:
             try:
