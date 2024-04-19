@@ -3,7 +3,6 @@
 # If Wi-FI device connected or disconnected - script send telegram message
 # Also send in router down
 
-import json
 import time
 import hashlib
 import copy
@@ -84,36 +83,8 @@ def send_message(msg):
         return
 
     logging.info(f'[Send message] {msg}')
-    r = requests.post(f'https://api.telegram.org'
-                      f'/bot{TG_BOT_TOKEN}'
-                      f'/sendMessage'
-                      f'?chat_id={TG_CHAT_ID}'
-                      f'&parse_mode=HTML'
-                      f'&text={msg}',
-                      timeout=10)
-    if r.status_code != 200:
-        logging.error(f'[Telegram error] {r.status_code}, {r.text}')
-
-
-def send_host_down_message(error):
-    """
-    At first glance, it seems that this function can be removed,
-    but otherwise unable to send a message with a quote correctly
-    """
-
-    def utf16len(text):
-        return sum([1 if ord(c) < 65536 else 2 for c in text])
-
-    unquoted_text = f'🔥 {WIFI_NAME} host probably down.'
-    offset = utf16len(unquoted_text)
-    length = utf16len(str(error))
-
-    host_down_message = unquoted_text + str(error)
-    logging.info('[Send message]' + host_down_message)
-
-    body = {'chat_id': TG_CHAT_ID, 'text': host_down_message,
-            'entities': json.dumps([{'type': 'blockquote', 'offset': offset, 'length': length}])}
-    r = requests.post(f'https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage', data=body, timeout=10)
+    r = requests.post(f'https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage?parse_mode=HTML'
+                      f'&chat_id={TG_CHAT_ID}&text={msg}', timeout=10)
     if r.status_code != 200:
         logging.error(f'[Telegram error] {r.status_code}, {r.text}')
 
@@ -136,7 +107,7 @@ if __name__ == '__main__':
                 ACTIVE_CLIENTS = {}
                 host_alive = False
                 logging.error(err)
-                send_host_down_message(err)
+                send_message(f'🔥 {WIFI_NAME} host probably down.')
                 time.sleep(30)
         except Exception as err:
             logging.error(err)
