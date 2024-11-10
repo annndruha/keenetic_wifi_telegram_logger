@@ -9,43 +9,38 @@ Machine on which this script is running must be located outside the network that
 
 The script ask router for list of clients every 5 seconds, but routers have a state update delay, so real refresh rate for device connect ~20 seconds for disconnect ~1-10 minutes.
 
-## How to use (Linux + docker)
+## How to run (on Linux server outside wifi network + docker)
 
-Clone repo and go to folder:
-```shell
-git clone https://github.com/annndruha/keenetic_wifi_telegram_logger
-cd keenetic_wifi_telegram_logger
-```
+1. Clone repo and go to cloned folder:
+    ```shell
+    git clone https://github.com/annndruha/keenetic_wifi_telegram_logger
+    cd keenetic_wifi_telegram_logger
+    ```
 
-Create in .env-file in repository folder:
-```shell
-touch .env
-```
+2. Copy example .env-file:
+    ```shell
+    cp .env.example .env
+    ```
 
-Fill your values in .env-file (`nano .env` etc.) as in example:
+3. Change values in .env-file to you credentials as in copied example (Edit via `nano` etc.). Explanation:
+    * WIFI_NAME - Human name of network for show in telegram message (Any value)
+    * WIFI_HOST - Router domain
+    * WIFI_LOGIN - Router admin-panel login
+    * WIFI_PASSWORD - Router admin-panel password
+    * TG_BOT_TOKEN - Token for your bot from BotFather
+    * TG_CHAT_ID - Telegram id of the user who will receive notifications (Or group id)
 
-(TG_CHAT_ID - Telegram id of the user who will receive notifications)
-
-```text
-WIFI_NAME=🏠 Home Wi-Fi
-WIFI_HOST=https://yourdomain.keenetic.pro
-WIFI_LOGIN=admin
-WIFI_PASSWORD=password
-TG_BOT_TOKEN=123456:ABCDEFGHIJKLMNFSSJFKAGS
-TG_CHAT_ID=123456789
-```
-
-Run container:
-```shell
-docker compose up -d
-```
+4. Run container and detach:
+    ```shell
+    docker compose up -d
+    ```
 
 ## User notes
 A Telegram message consists of the following notations:
 * Device connection mark as 🟢 symbol
 * Device disconnection mark as 🔴 symbol
-* Unregistered devices also mark with symbol ⚠️
-* If router became unreachable marks with 🔥 symbol and send error description
+* Unregistered devices also mark with ⚠️ symbol
+* If router became unreachable it marks with 🔥 symbol
 
 Device name order to show in message (take first available name):
 * user-defined-name (manually set via router web-interface)
