@@ -3,7 +3,7 @@
 > Work only with Keenetic routers.
 
 Simple python script which sends you a Telegram message when a device connects to Wi-Fi/LAN or disconnects. Also sends message if router becomes unreachable or comes back online.
-Script use REST Keenetic-API. For test propose check your router web-interface at `https://<YOURDOMAIN>.keenetic.pro/a`
+Script use REST Keenetic-API. For test propose check your router web-interface at `https://<YOURDOMAIN>.keenetic.<pro|link|name>/a`
 
 Machine on which this script is running must be located outside the network that you plan to monitor.
 
