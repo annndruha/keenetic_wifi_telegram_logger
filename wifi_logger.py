@@ -1,16 +1,17 @@
 # https://github.com/annndruha/keenetic_wifi_telegram_logger
 # This script made for Keenetic routers
 # If Wi-FI device connected or disconnected - script send telegram message
-# Also send in router down
+# Also send alert if router unreachable
 
-import time
-import hashlib
 import copy
+import hashlib
 import logging
+import time
 
 import requests
 from dotenv import dotenv_values
 
+# Load .env-file
 config = dotenv_values('.env')
 WIFI_NAME = config['WIFI_NAME']
 WIFI_HOST = config['WIFI_HOST']
@@ -19,27 +20,30 @@ WIFI_PASSWORD = config['WIFI_PASSWORD']
 TG_BOT_TOKEN = config['TG_BOT_TOKEN']
 TG_CHAT_ID = config['TG_CHAT_ID']
 
-logging.basicConfig(
-    format='[%(asctime)s] [%(levelname)s] %(message)s',
-    level=logging.INFO,
-    datefmt='%Y.%m.%d %H:%M:%S UTC'
-)
+# Setup logging
+logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s',
+                    level=logging.INFO, datefmt='%Y.%m.%d %H:%M:%S UTC')
 logging.Formatter.converter = time.gmtime
 
-session = requests.session()  # Global session for prevent auth on every request
-ACTIVE_CLIENTS = {}  # {'mac_address' : 'device_name'}
+# Global session for prevent auth every request
+session = requests.session()
+
+# Current connected clients
+# {'mac_address' : 'device_name'}
+ACTIVE_CLIENTS: dict[str, str] = {}
 
 
-def keen_auth(username, password):
+def keen_auth():
+    """Return True if authorized, False if not or connection is lost"""
     r = session.get(f'{WIFI_HOST}/auth', timeout=10)
     if r.status_code == 200:
         return True
     if r.status_code == 401:
-        md5 = username + ':' + r.headers['X-NDM-Realm'] + ':' + password
+        md5 = WIFI_LOGIN + ':' + r.headers['X-NDM-Realm'] + ':' + WIFI_PASSWORD
         md5 = hashlib.md5(md5.encode('utf-8'))
         sha = r.headers['X-NDM-Challenge'] + md5.hexdigest()
         sha = hashlib.sha256(sha.encode('utf-8'))
-        r_auth = session.post(f'{WIFI_HOST}/auth', json={'login': username, 'password': sha.hexdigest()}, timeout=10)
+        r_auth = session.post(f'{WIFI_HOST}/auth', json={'login': WIFI_LOGIN, 'password': sha.hexdigest()}, timeout=10)
         if r_auth.status_code == 200:
             return True
         else:
@@ -48,6 +52,7 @@ def keen_auth(username, password):
 
 
 def update_clients():
+    """Update ACTIVE_CLIENTS global variable"""
     r = session.get(f'{WIFI_HOST}/rci/show/ip/hotspot', timeout=10)
     if r.status_code != 200:
         raise ConnectionRefusedError(f'Status code: {r.status_code}')
@@ -63,7 +68,8 @@ def update_clients():
             ACTIVE_CLIENTS.pop(client['mac'], None)  # Delete from clients list
 
 
-def compare_states(old, new):
+def compare_states(old: dict[str, str], new: dict[str, str]) -> str:
+    """Compare states of old and new dicts of clients. Generate message if states is different"""
     new_devices = list(set(new.keys()) - set(old.keys()))
     old_devices = list(set(old.keys()) - set(new.keys()))
 
@@ -78,7 +84,7 @@ def compare_states(old, new):
     return msg
 
 
-def send_message(msg):
+def send_message(msg: str):
     if not len(msg):
         return
 
@@ -89,26 +95,58 @@ def send_message(msg):
         logging.error(f'[Telegram error] {r.status_code}, {r.text}')
 
 
+def get_interval(last_alive: float) -> float:
+    """Define interval for host down message (decrease frequency)"""
+    elapsed_time = time.time() - last_alive
+    if elapsed_time < 180:  # If down < 3 minutes
+        return 60  # send every 1 minute
+    elif elapsed_time < 3600:  # If down < 1 hour
+        return 600  # send every 10 minutes
+    else:  # If down >= 1 hour
+        return 1800  # send every 30 minutes
+
+
+def get_human_downtime(last_alive: float) -> str:
+    """String representation of downtime"""
+    downtime = int(time.time() - last_alive)
+    hours, remainder = divmod(downtime, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f'{hours}h {minutes}m {seconds}s'
+    elif minutes:
+        return f'{minutes}m {seconds}s'
+    else:
+        return f'{seconds}s'
+
+
 if __name__ == '__main__':
     host_alive = False
+    last_alive = time.time()
+    last_sent_time = 0
     while True:
         try:
             try:
-                while keen_auth(WIFI_LOGIN, WIFI_PASSWORD):
+                while keen_auth():
                     if not host_alive:  # Host back online but may have no clients
                         host_alive = True
-                        send_message(f'✅ {WIFI_NAME} host alive!')
+                        downtime = get_human_downtime(last_alive)
+                        send_message(f'✅ {WIFI_NAME} host alive! (After down for {downtime})')
                     old_active_clients = copy.deepcopy(ACTIVE_CLIENTS)
                     update_clients()
                     message = compare_states(old_active_clients, ACTIVE_CLIENTS)
                     send_message(message)
+                    last_alive = time.time()
+                    last_sent_time = 0
                     time.sleep(5)
             except (ConnectionError, requests.RequestException) as err:
                 ACTIVE_CLIENTS = {}
                 host_alive = False
                 logging.error(err)
-                send_message(f'🔥 {WIFI_NAME} host probably down.')
-                time.sleep(30)
+                if time.time() - last_sent_time >= get_interval(last_alive):
+                    downtime = get_human_downtime(last_alive)
+                    send_message(f'🔥 {WIFI_NAME} host probably down. ({downtime})')
+                    last_sent_time = time.time()
+                time.sleep(10)
         except Exception as err:
             logging.error(err)
             time.sleep(30)
