@@ -1,8 +1,10 @@
-# https://github.com/annndruha/keenetic_wifi_telegram_logger
-# This script made for Keenetic routers
-# If Wi-FI device connected or disconnected - script send telegram message
-# Also send alert if router unreachable
+"""
+https://github.com/annndruha/keenetic_wifi_telegram_logger
 
+This script made for Keenetic routers
+If Wi-FI device connected or disconnected - script send telegram message
+Also send alert if router unreachable
+"""
 import copy
 import hashlib
 import logging
@@ -34,7 +36,7 @@ ACTIVE_CLIENTS: dict[str, str] = {}
 
 
 def keen_auth():
-    """Return True if authorized, False if not or connection is lost"""
+    """Return True if authorized, raise Error if connection is lost"""
     r = session.get(f'{WIFI_HOST}/auth', timeout=10)
     if r.status_code == 200:
         return True
@@ -79,7 +81,7 @@ def compare_states(old: dict[str, str], new: dict[str, str]) -> str:
     msg = ''
     msg += ''.join([f'🟢 {new[nc]}%0A' for nc in new_devices])
     msg += ''.join([f'🔴 {old[rc]}%0A' for rc in old_devices])
-    msg = '%0A'.join(sorted(filter(None, msg.split('%0A'))))
+    msg = '%0A'.join(sorted(filter(None, msg.split('%0A'))))  # Sort devices
     msg = f'{WIFI_NAME}:%0A' + msg
     return msg
 
@@ -127,26 +129,34 @@ if __name__ == '__main__':
         try:
             try:
                 while keen_auth():
-                    if not host_alive:  # Host back online but may have no clients
+                    # Host back online but may have no clients
+                    if not host_alive:
                         host_alive = True
                         downtime = get_human_downtime(last_alive)
-                        send_message(f'✅ {WIFI_NAME} host alive! (After down for {downtime})')
+                        send_message(f'✅ {WIFI_NAME} host alive! (Down for {downtime})')
+
+                    # Send message if state changed
                     old_active_clients = copy.deepcopy(ACTIVE_CLIENTS)
                     update_clients()
                     message = compare_states(old_active_clients, ACTIVE_CLIENTS)
                     send_message(message)
+
+                    # Remember last alive time
                     last_alive = time.time()
                     last_sent_time = 0
                     time.sleep(5)
-            except (ConnectionError, requests.RequestException) as err:
+            except (ConnectionError, requests.RequestException) as e:
+                # Router became unreachable or still down
                 ACTIVE_CLIENTS = {}
                 host_alive = False
-                logging.error(err)
+
+                # Send and with decrease frequency
                 if time.time() - last_sent_time >= get_interval(last_alive):
+                    logging.error(e)
                     downtime = get_human_downtime(last_alive)
-                    send_message(f'🔥 {WIFI_NAME} host probably down. ({downtime})')
+                    send_message(f'🔥 {WIFI_NAME} host down ({downtime})')
                     last_sent_time = time.time()
-                time.sleep(10)
-        except Exception as err:
-            logging.error(err)
-            time.sleep(30)
+                time.sleep(5)
+        except Exception as e:
+            logging.exception(e)
+            time.sleep(60)
