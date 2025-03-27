@@ -1,15 +1,17 @@
 # Keenetic Wi-Fi/LAN clients Telegram logger
 
+## [README на русском языке](./README-RU.md)
+
 > Work only with Keenetic routers.
 
 Simple python script which sends you a Telegram message when a device connects or disconnects to Wi-Fi/LAN. Also sends message if router becomes unreachable or comes back online.
-Script use REST Keenetic-API. For test propose check your router web-interface at `https://your_keenetic_domain/a`
+Script use REST Keenetic-API.
 
 Machine on which this script is running must be **located outside** the network that you plan to monitor.
 
-The script ask router for list of clients every 10 seconds, but routers have a state update delay, so real refresh rate for device connect ~20 seconds, for disconnect ~1-10 minutes.
+The script ask router for list of clients every 5 seconds, but routers have a state update delay, so real refresh rate for device connect ~20 seconds, for disconnect ~1-10 minutes.
 
-## How to run (on Linux server via docker outside Wi-Fi network)
+## How to run (on Linux server via Docker outside router network)
 
 1. Clone repo and go to cloned folder:
     ```shell
@@ -61,3 +63,7 @@ If you need monitor more than one router/domain:
 * Just clone repo in several folders `git clone https://github.com/annndruha/keenetic_wifi_telegram_logger another_folder`
 * Change .env in every folder according to every router creds
 * It's pretty to use icons for many routers like `WIFI_NAME=🏠 HOME`
+
+For debug purpose you may explore what information script receive from router:
+* Go to your router web-interface at `https://<your_keenetic_domain>/webcli/rest`
+* Send POST request with line (UTL:rci/): `/show/ip/hotspot`
