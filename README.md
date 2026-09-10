@@ -34,7 +34,7 @@ The script ask router for list of clients every 5 seconds, but routers have a st
 
 4. Run container and detach:
     ```shell
-    docker compose up -d
+    docker compose up -d --build
     ```
 
 ## User notes
