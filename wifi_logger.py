@@ -121,10 +121,13 @@ def get_human_downtime(last_alive: float) -> str:
         return f'{seconds}s'
 
 
+DOWN_GRACE = 60  # не сообщать о падении, если недоступность короче N секунд
+
 if __name__ == '__main__':
     host_alive = False
     last_alive = time.time()
     last_sent_time = 0
+    down_alerted = False          # было ли отправлено сообщение о падении
     while True:
         try:
             try:
@@ -132,31 +135,39 @@ if __name__ == '__main__':
                     # Host back online but may have no clients
                     if not host_alive:
                         host_alive = True
-                        downtime = get_human_downtime(last_alive)
-                        send_message(f'✅ {WIFI_NAME} host alive! (Down for {downtime})')
+                        if down_alerted:          # молчим, если о падении не сообщали
+                            downtime = get_human_downtime(last_alive)
+                            send_message(f'✅ {WIFI_NAME} host alive! (Down for {downtime})')
+                        down_alerted = False
 
-                    # Send message if state changed
                     old_active_clients = copy.deepcopy(ACTIVE_CLIENTS)
                     update_clients()
                     message = compare_states(old_active_clients, ACTIVE_CLIENTS)
                     send_message(message)
 
-                    # Remember last alive time
                     last_alive = time.time()
                     last_sent_time = 0
                     time.sleep(5)
-            except (ConnectionError, requests.RequestException) as e:
-                # Router became unreachable or still down
-                ACTIVE_CLIENTS = {}
-                host_alive = False
 
-                # Send and with decrease frequency
+            except (ConnectionError, requests.RequestException) as e:
+                host_alive = False
+                elapsed = time.time() - last_alive
+
+                if elapsed < DOWN_GRACE:
+                    # короткий провал — просто ждём, список клиентов не трогаем
+                    logging.warning(f'Host unreachable {int(elapsed)}s: {e}')
+                    time.sleep(5)
+                    continue
+
+                ACTIVE_CLIENTS = {}
                 if time.time() - last_sent_time >= get_interval(last_alive):
                     logging.error(e)
                     downtime = get_human_downtime(last_alive)
                     send_message(f'🔥 {WIFI_NAME} host down ({downtime})')
                     last_sent_time = time.time()
+                    down_alerted = True
                 time.sleep(5)
+
         except Exception as e:
             logging.exception(e)
             time.sleep(60)
