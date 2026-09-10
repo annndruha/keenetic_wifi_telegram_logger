@@ -34,7 +34,7 @@
 
 4. Запустите контейнер:
     ```shell
-    docker compose up -d
+    docker compose up -d --build
     ```
 
 ## Пояснения
